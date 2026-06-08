@@ -59,15 +59,22 @@ jobs:
       - name: Build unsigned IPA
         run: flutter build ipa --release --no-codesign
 
-      - name: Locate IPA
+      - name: Locate or package unsigned IPA
         id: ipa
         shell: bash
         run: |
-          IPA_PATH=$(find build/ios/ipa -name "*.ipa" -type f | head -n 1)
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" -type f 2>/dev/null | head -n 1 || true)
           if [ -z "$IPA_PATH" ]; then
-            echo "No IPA found in build/ios/ipa"
-            find build -maxdepth 4 -type f | sort || true
-            exit 1
+            APP_PATH=$(find build/ios/archive -path "*/Products/Applications/*.app" -type d | head -n 1)
+            if [ -z "$APP_PATH" ]; then
+              echo "No IPA or archived .app found"
+              find build -maxdepth 6 -type f -o -type d | sort || true
+              exit 1
+            fi
+            mkdir -p build/ios/ipa/Payload
+            cp -R "$APP_PATH" build/ios/ipa/Payload/
+            (cd build/ios/ipa && zip -qry PrintX-unsigned.ipa Payload)
+            IPA_PATH="build/ios/ipa/PrintX-unsigned.ipa"
           fi
           echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
           echo "Found IPA: $IPA_PATH"
