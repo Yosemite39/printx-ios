@@ -1,4 +1,6 @@
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -63,6 +65,9 @@ class _PrintXHomeState extends State<PrintXHome> {
   final search = TextEditingController();
   String activeSection = 'ALL';
   bool showPreview = true;
+  String printerMode = 'Copy/Raw Mode';
+  String status = 'iOS PrintX siap — pilih printer / copy raw payload';
+  String historyFilter = '';
   final List<Product> products = _catalog.map((m) => Product(m['name'] as String, m['price'] as int, m['section'] as String, m['unit'] as String, m['netPrice'] as int)).toList();
 
   @override
@@ -121,17 +126,61 @@ class _PrintXHomeState extends State<PrintXHome> {
           ...filtered.map(_productTile),
           const SizedBox(height: 12),
           Text('Grand Total: ${money(total)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xffff8a24))),
+          const SizedBox(height: 12),
+          _printerPanel(),
           const SizedBox(height: 8),
           Row(children: [
-            Expanded(child: ElevatedButton(onPressed: () { Clipboard.setData(ClipboardData(text: receipt)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Raw receipt copied'))); }, child: const Text('Copy Raw Text'))),
+            Expanded(child: ElevatedButton(onPressed: showPrintChooser, child: const Text('Print'))),
             const SizedBox(width: 8),
-            Expanded(child: ElevatedButton(onPressed: () => setState(() => showPreview = !showPreview), child: const Text('Preview'))),
+            Expanded(child: ElevatedButton(onPressed: testPrint, child: const Text('Test Print'))),
           ]),
-          if (showPreview) Container(margin: const EdgeInsets.only(top: 12), padding: const EdgeInsets.all(14), color: Colors.white, child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Text(receipt, style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.black)))),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: ElevatedButton(onPressed: newTransaction, child: const Text('Transaksi Baru'))),
+            const SizedBox(width: 8),
+            Expanded(child: ElevatedButton(onPressed: showHistoryDialog, child: const Text('Riwayat'))),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton(onPressed: () { Clipboard.setData(ClipboardData(text: receipt)); setState(() => status = 'Raw receipt dicopy ke clipboard'); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Raw receipt copied'))); }, child: const Text('Copy Raw Text'))),
+            const SizedBox(width: 8),
+            Expanded(child: OutlinedButton(onPressed: () => setState(() => showPreview = !showPreview), child: Text(showPreview ? 'Hide Preview' : 'Preview'))),
+          ]),
+          const SizedBox(height: 8),
+          Text(status, style: const TextStyle(color: Color(0xff8bd3ff), fontFamily: 'monospace')),
+          if (showPreview) Container(margin: const EdgeInsets.only(top: 12), padding: const EdgeInsets.all(14), color: Colors.white, child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Text(receipt, style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Colors.black)))), 
         ],
       ),
     );
   }
+
+  Widget _printerPanel() => Card(
+    color: const Color(0xff100c09),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Printer / POS', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xffff8a24))),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: printerMode,
+          dropdownColor: const Color(0xff17110d),
+          decoration: const InputDecoration(labelText: 'Mode printer'),
+          items: const [
+            DropdownMenuItem(value: 'Copy/Raw Mode', child: Text('Copy/Raw Mode')),
+            DropdownMenuItem(value: 'Zebra ZQ320', child: Text('Zebra ZQ320')),
+            DropdownMenuItem(value: 'Manual/Sideload', child: Text('Manual/Sideload')),
+          ],
+          onChanged: (v) => setState(() => printerMode = v ?? printerMode),
+        ),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: OutlinedButton(onPressed: () => setState(() => status = 'Refresh printer selesai. Catatan: iOS unsigned belum punya akses Bluetooth SPP seperti Android; payload print disiapkan/copy.'), child: const Text('Refresh Printer'))),
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton(onPressed: () => setState(() => status = 'Zebra ZQ320 dipilih sebagai target; gunakan tombol Print untuk pilih nota.'), child: const Text('Pilih ZQ320'))),
+        ]),
+      ]),
+    ),
+  );
 
   Widget _input(TextEditingController c, String hint, {ValueChanged<String>? onChanged}) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
@@ -152,6 +201,99 @@ class _PrintXHomeState extends State<PrintXHome> {
       ]),
     ),
   );
+
+  void showPrintChooser() {
+    if (total <= 0) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Qty masih kosong'))); return; }
+    final sections = ['V1','V2','ABC','Korek'].where((s) => templateTotal(s) > 0).toList();
+    showDialog(context: context, builder: (_) => AlertDialog(
+      title: const Text('Print Nota'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('Pilih nota yang mau dicetak/salin satu-satu, lalu sobek manual.'),
+        const SizedBox(height: 8),
+        ...sections.map((s) => Padding(padding: const EdgeInsets.only(bottom: 8), child: SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () { Navigator.pop(context); printSection(s); }, child: Text('Print $s — Rp ${money(templateTotal(s))}'))))),
+        SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () { Navigator.pop(context); printPayload(receiptTotalOrder(), 'Rekap'); }, child: Text('Print Total Order — Rp ${money(total)}'))),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup'))],
+    ));
+  }
+
+  void printSection(String sec) {
+    final payload = sec == 'V1' ? receiptV1('V1') : sec == 'V2' ? receiptV2('V2') : sec == 'ABC' ? receiptPanamas('ABC') : receiptKorek('Korek');
+    printPayload(payload, sec);
+  }
+
+  Future<void> printPayload(String payload, String sec) async {
+    await Clipboard.setData(ClipboardData(text: payload));
+    await saveHistory(payload, sec);
+    setState(() => status = 'Payload $sec siap dan dicopy. Untuk direct Bluetooth ZQ320 di iOS perlu bridge/plugin Zebra; UI POS sudah disamakan.');
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payload $sec copied / tersimpan riwayat')));
+  }
+
+  void testPrint() => printPayload('PRINTX iOS\nTEST PRINT OK\nMode: $printerMode\n${DateTime.now()}\n', 'Test');
+
+  void newTransaction() {
+    setState(() { for (final p in products) { p.qty = 0; } search.clear(); activeSection = 'ALL'; status = 'Transaksi baru siap'; });
+  }
+
+  Future<void> saveHistory(String payload, String sec) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('history') ?? '[]';
+    final arr = (jsonDecode(raw) as List).cast<dynamic>();
+    final payloads = <String, String>{};
+    for (final s in ['V1','V2','ABC','Korek']) { if (templateTotal(s) > 0) payloads[s] = s == 'V1' ? receiptV1('V1') : s == 'V2' ? receiptV2('V2') : s == 'ABC' ? receiptPanamas('ABC') : receiptKorek('Korek'); }
+    payloads['Rekap'] = receiptTotalOrder();
+    arr.insert(0, {'time': DateTime.now().toString().substring(0,16), 'customer': customer.text, 'store': storeName(customer.text), 'total': total, 'section': sec, 'payload': payload, 'payloads': payloads});
+    while (arr.length > 30) { arr.removeLast(); }
+    await prefs.setString('history', jsonEncode(arr));
+  }
+
+  Future<void> showHistoryDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final arr = (jsonDecode(prefs.getString('history') ?? '[]') as List).cast<dynamic>();
+    if (!mounted) return;
+    showDialog(context: context, builder: (_) {
+      var filter = historyFilter;
+      return StatefulBuilder(builder: (context, setLocal) {
+        final shown = arr.where((e) => ('${e['time']} ${e['store']} ${e['total']}').toLowerCase().contains(filter.toLowerCase())).toList();
+        return AlertDialog(
+          title: const Text('Riwayat Belanja + Filter'),
+          content: SizedBox(width: double.maxFinite, height: 460, child: Column(children: [
+            TextField(decoration: const InputDecoration(hintText: 'Filter tanggal / toko / total'), onChanged: (v) { historyFilter = v; setLocal(() => filter = v); }),
+            const SizedBox(height: 8),
+            Expanded(child: ListView(children: shown.map((e) => Card(child: ListTile(
+              title: Text('${e['time']} — ${e['store']}'),
+              subtitle: Text('Rp ${money((e['total'] as num?)?.toInt() ?? 0)} — ${e['section']}'),
+              onTap: () => showHistoryDetail(Map<String, dynamic>.from(e as Map)),
+            ))).toList())),
+          ])),
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup'))],
+        );
+      });
+    });
+  }
+
+  void showHistoryDetail(Map<String, dynamic> e) {
+    final payload = '${e['payload'] ?? ''}';
+    showDialog(context: context, builder: (_) => AlertDialog(
+      title: Text('Preview ${e['store'] ?? ''}'),
+      content: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Text(payload, style: const TextStyle(fontFamily: 'monospace'))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
+        ElevatedButton(onPressed: () { Navigator.pop(context); printPayload(payload, '${e['section'] ?? 'History'}'); }, child: const Text('Print Again')),
+      ],
+    ));
+  }
+
+  String storeName(String c) { final i = c.indexOf('/'); return i >= 0 && i + 1 < c.length ? c.substring(i + 1).trim() : (c.trim().isEmpty ? 'Pelanggan' : c.trim()); }
+
+  String receiptTotalOrder() {
+    final lines = <String>[center('REKAP PEMBAYARAN'), ''];
+    field(lines, 'Yang Menyerahkan', salesman.text.contains('/') ? salesman.text.split('/').last.trim() : salesman.text);
+    field(lines, 'Nama Pelanggan', customer.text);
+    field(lines, 'Tanggal Cetak', DateTime.now().toString().substring(0,16));
+    for (final s in ['V1','V2','ABC','Korek']) { final t = templateTotal(s); if (t > 0) { lines.add(s == 'V1' ? 'PT. HM SAMPOERNA' : s == 'V2' ? 'PT. SEMBILAN CAHAYA LESTARI' : s == 'ABC' ? 'PT. Perusahaan Dagang & Industri Panamas' : 'PT. SRC Indonesia Sembilan'); lines.add(moneyCol('Total Order', money(t))); lines.add(''); } }
+    lines.add(dash()); lines.add(moneyCol('Grand Total Order', money(total))); lines.add(moneyCol('Total Bayar', money(total))); return lines.join('\n');
+  }
 
   String receiptText() {
     final sections = ['V1','V2','ABC','Korek'].where((s) => templateTotal(s) > 0).toList();
