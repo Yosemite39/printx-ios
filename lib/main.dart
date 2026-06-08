@@ -90,7 +90,7 @@ class _PrintXHomeState extends State<PrintXHome> {
   List<Product> get filtered => products.where((p) {
     if (activeSection != 'ALL' && p.section != activeSection) return false;
     final q = search.text.toLowerCase().trim();
-    return q.isEmpty || p.name.toLowerCase().contains(q);
+    return q.isEmpty || p.name.toLowerCase().contains(q) || codeFor(p).toLowerCase().contains(q);
   }).toList();
 
   int sectionTotal(String sec) => products.where((p) => p.section == sec).fold(0, (a, p) => a + p.subtotal);
@@ -179,8 +179,8 @@ class _PrintXHomeState extends State<PrintXHome> {
     final lines = <String>[];
     lines.addAll([center('ESA SAMPOERNA CENTER Lt.5'), center('Jl. Dr. Ir. H. Soekarno 198'), center('Surabaya 60117 - Jawa Timur'), center('62 31 2979216'), '', center('*** PENJUALAN ***'), '']);
     field(lines, 'Pengantar', salesman.text); field(lines, 'Pelanggan', customer.text); field(lines, 'Kode Referensi', sclXqmCode()); field(lines, 'Kode Referensi Baru', customerCodeOnly()); field(lines, 'Tanggal', englishDate()); field(lines, 'NO. NOTA PENJUALAN', sclNotaNumber());
-    lines.addAll(['', fmt('%-16s%3s%4s%5s%4s%7s%8s%8s', ['PROD','Box','Bal','Slof','Pak','TotPak','Harga','SubT']), dash(), '']);
-    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(fmt('%16s%3d%4d%5d%4d%7d%8s%8s', ['', p.box, p.bal, p.slof, p.pak, p.totPak, money(p.price), money(p.subtotal)])); lines.add(''); }
+    lines.addAll(['', fmt('%-10s%4s%4s%5s%4s%8s%9s%10s', ['PROD','Box','Bal','Slof','Pak','Tot.Pak','Harga','SubTotal']), dash(), '']);
+    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(fmt('%10s%4d%4d%5d%4d%8d%9s%10s', ['', p.box, p.bal, p.slof, p.pak, p.totPak, money(p.price), money(p.subtotal)])); lines.add(''); }
     commonTotals(lines, sec, 'UANG TUNAI BV1'); lines.add('PENERIMA                             PENGANTAR'); return lines.join('\n');
   }
 
@@ -205,6 +205,54 @@ class _PrintXHomeState extends State<PrintXHome> {
   void commonTotals(List<String> lines, String sec, String payLabel) { final t = templateTotal(sec); lines.addAll([twoCol('Grand Total', money(t)), '', '']); payment(lines, t, payLabel); lines.addAll(['', twoCol('Grand Total', money(t)), '', twoCol('Total Bayar', money(t)), '', '']); terms(lines); }
   void payment(List<String> lines, int total, String label) => lines.addAll(['Rincian Pembayaran', 'Tipe/Ref No        CNF Number   Due Date     Subtotal', dash(), '', twoCol(label, money(total)), '', '']);
   void terms(List<String> lines, {bool extra = false}) { lines.add(center('*** Syarat dan Ketentuan Berlaku ***')); lines.add(''); lines.add(center('Mohon untuk selalu memastikan jumlah barang yang diterima', w: 58)); lines.add(center('sesuai dengan pesanan dan nilai uang yang dibayarkan', w: 58)); if (extra) lines.add(center('Barang yang sudah dibeli tidak dapat dikembalikan', w: 58)); lines.addAll(['', '', 'Tanda Tangan', '', '', '', '', '', '', '', '']); }
+
+  String codeFor(Product p) {
+    final n = p.name;
+    if (n.contains('Balai Emas')) return 'BLS12';
+    if (n.contains('Aspro Inter')) return 'API16';
+    if (n.contains('Ares Bold')) return 'ARB12';
+    if (n.contains('Lodjie Ijo')) return 'LOJ12';
+    if (n.contains('Twizz Prime Royal')) return 'TPR16';
+    if (n.contains('Twizz Prime Tropical')) return 'TPT16';
+    if (n.contains('Twizz Royal Crush LT 12')) return 'TWR12';
+    if (n.contains('Twizz Royal Crush LT 16')) return 'TWR16';
+    if (n.contains('Twizz Yellow')) return 'TWY16';
+    if (n.contains('Twizz Prime LT')) return 'TWP16';
+    if (n.contains('Nian')) return 'NIA16';
+    if (n.contains('Serasa')) return 'SRS16';
+    if (n.contains('DSS 6Plus6')) return 'DLA12';
+    if (n.contains('DSS Magnum Kretek (Refine)')) return 'DKM12';
+    if (n.contains('DSS Super Premium 12 LEP Maestro')) return 'DRE12';
+    if (n.contains('DSS Super Premium 16')) return 'DSB16';
+    if (n.contains('DSS Magnum 12') && !n.contains('Kretek')) return 'DSM12';
+    if (n.contains('Magnum Kretek Coklat')) return 'MKC12';
+    if (n.contains('Magnum Kretek 12')) return 'MKT12';
+    if (n.contains('Marlboro Filter Black 12')) return 'MFB12';
+    if (n.contains('Marlboro Filter Black 16')) return 'MFB16';
+    if (n.contains('Marlboro Filter Black 20') || n.contains('Marlboro Filter Black Motion 20')) return 'MFB20';
+    if (n.contains('Avolution Mtl')) return 'AVM20';
+    if (n.contains('Avolution 20')) return 'AVR20';
+    if (n.contains('Sampoerna A Mild 12')) return 'MLD12';
+    if (n.contains('Sampoerna A Mild 16 38000')) return 'MLD16';
+    if (n.contains('Sampoerna A Mild 16 LEP')) return 'MLA16';
+    if (n.contains('Sampoerna A Mild Mtl')) return 'MTB16';
+    if (n.contains('Sampoerna A Splash Royal')) return 'MRL16';
+    if (n.contains('Sampoerna A Splash Tropical')) return 'MTR16';
+    if (n.contains('Sampoerna Hijau 12')) return 'SAH12';
+    if (n.contains('Sampoerna Hijau 10Plus2')) return 'SLE12';
+    if (n.contains('Sampoerna Kretek Prima 12')) return 'SAI12';
+    if (n.contains('Sampoerna Kretek Prima (Soft Pack)')) return 'SPS12';
+    if (n.contains('Sampoerna Hijau Legit Nira')) return 'SAL12';
+    if (n.contains('Sampoerna Hijau Legit Amerta')) return 'SLA12';
+    if (n.contains('Sampoerna Hijau Legit Sada')) return 'SLS12';
+    if (n.contains('Marlboro Ice Burst 20 49900')) return 'MMI20';
+    if (n.contains('Marlboro Gold 20 49900')) return 'MBL20';
+    if (n.contains('Marlboro Red 20 49900')) return 'MBR20';
+    if (n.contains('Marlboro Gold 20 LEP')) return 'MSR20';
+    if (n.contains('Marlboro Red 20 LEP')) return 'MSL20';
+    if (n.contains('Marlboro Ice Burst 20 LEP')) return 'MST20';
+    return '';
+  }
 
   void field(List<String> lines, String k, String v) { lines.add(cut('${k.padRight(18)}: $v')); lines.add(''); }
   String customerCodeOnly() { final c = customer.text; final i = c.indexOf('/'); return i > 0 ? c.substring(0, i).trim() : c; }
@@ -249,7 +297,7 @@ final List<Map<String, Object>> _catalog = [
   },
   {
     "name": "DSS Magnum Kretek (Refine) 12 18675 2026",
-    "price": 16400,
+    "price": 13200,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
@@ -284,7 +332,7 @@ final List<Map<String, Object>> _catalog = [
   },
   {
     "name": "Sampoerna A Splash Royal 16 38000 2026",
-    "price": 30000,
+    "price": 30900,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
@@ -326,7 +374,7 @@ final List<Map<String, Object>> _catalog = [
   },
   {
     "name": "Magnum Kretek Coklat 12 18675 2026",
-    "price": 16400,
+    "price": 13450,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
@@ -403,14 +451,14 @@ final List<Map<String, Object>> _catalog = [
   },
   {
     "name": "Marlboro Gold 20 49900 2026",
-    "price": 40700,
+    "price": 51850,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
   },
   {
     "name": "Marlboro Red 20 49900 2026",
-    "price": 40700,
+    "price": 51850,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
@@ -424,7 +472,7 @@ final List<Map<String, Object>> _catalog = [
   },
   {
     "name": "Marlboro Filter Black 12 28500 2026",
-    "price": 23600,
+    "price": 24000,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
@@ -445,14 +493,14 @@ final List<Map<String, Object>> _catalog = [
   },
   {
     "name": "Sampoerna A Splash Tropical 16 38000 2026",
-    "price": 20800,
+    "price": 30900,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
   },
   {
     "name": "Sampoerna Hijau 12 18675 2026",
-    "price": 13300,
+    "price": 15350,
     "section": "V1",
     "unit": "Pak",
     "netPrice": 0
