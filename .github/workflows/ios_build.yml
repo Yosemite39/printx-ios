@@ -1,0 +1,103 @@
+name: iOS IPA Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag, e.g. v1.0.0"
+        required: false
+        default: "v1.0.0"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show Flutter and Xcode versions
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Generate iOS project if missing
+        run: |
+          if [ ! -d ios ]; then
+            flutter create . --platforms=ios --project-name printx_ios
+          fi
+
+      - name: Ensure iOS project files exist
+        run: |
+          test -d ios || (echo "Missing ios/ folder. This must be a Flutter project with iOS support." && exit 1)
+          test -f pubspec.yaml || (echo "Missing pubspec.yaml at repository root." && exit 1)
+
+      - name: Clean previous build
+        run: flutter clean
+
+      - name: Re-install dependencies after clean
+        run: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Build unsigned IPA
+        run: flutter build ipa --release --no-codesign
+
+      - name: Locate IPA
+        id: ipa
+        shell: bash
+        run: |
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" -type f | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA found in build/ios/ipa"
+            find build -maxdepth 4 -type f | sort || true
+            exit 1
+          fi
+          echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+          echo "Found IPA: $IPA_PATH"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrintX-unsigned-ipa
+          path: ${{ steps.ipa.outputs.ipa_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag || 'v1.0.0' }}
+          name: PrintX iOS IPA ${{ github.event.inputs.release_tag || 'v1.0.0' }}
+          body: |
+            Unsigned iOS IPA built by GitHub Actions.
+
+            Notes:
+            - Built with: flutter build ipa --release --no-codesign
+            - This IPA is unsigned and is not App Store ready.
+            - Use your chosen sideloading/signing method before installing on iPhone.
+          files: ${{ steps.ipa.outputs.ipa_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
