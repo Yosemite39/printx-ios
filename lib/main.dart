@@ -170,8 +170,8 @@ class _PrintXHomeState extends State<PrintXHome> {
     final lines = <String>[];
     lines.addAll([center('PT HM SAMPOERNA Tbk. - Sales DPC RE Cilacap'), center('Jln Raya Jeruk Legi Rt.03/05, CILACAP'), '', '', center('*** PENJUALAN ***'), '']);
     field(lines, 'Salesman', salesman.text); field(lines, 'Pelanggan', customer.text); field(lines, 'Tanggal', englishDate()); field(lines, 'NO. NOTA PENJUALAN', note.text);
-    lines.addAll(['', '', fmt('%-16s%3s%4s%5s%4s%7s%8s%8s', ['PROD','Box','Bal','Slof','Pak','TotPak','Harga','SubT']), dash(), '']);
-    for (final p in products.where((p) => p.totPak > 0 && (p.section == sec || (sec == 'V1' && p.section == 'SFP')))) { lines.add(cut(p.name)); lines.add(fmt('%16s%3d%4d%5d%4d%7d%8s%8s', ['', p.box, p.bal, p.slof, p.pak, p.totPak, money(p.price), money(p.subtotal)])); lines.add(''); }
+    lines.addAll(['', '', qtyPriceHeader(), dash(), '']);
+    for (final p in products.where((p) => p.totPak > 0 && (p.section == sec || (sec == 'V1' && p.section == 'SFP')))) { lines.add(cut(p.name)); lines.add(qtyPriceLine(p)); lines.add(''); }
     commonTotals(lines, sec, 'UANG TUNAI'); lines.add('PENERIMA                              PENJUAL'); return lines.join('\n');
   }
 
@@ -179,8 +179,8 @@ class _PrintXHomeState extends State<PrintXHome> {
     final lines = <String>[];
     lines.addAll([center('ESA SAMPOERNA CENTER Lt.5'), center('Jl. Dr. Ir. H. Soekarno 198'), center('Surabaya 60117 - Jawa Timur'), center('62 31 2979216'), '', center('*** PENJUALAN ***'), '']);
     field(lines, 'Pengantar', salesman.text); field(lines, 'Pelanggan', customer.text); field(lines, 'Kode Referensi', sclXqmCode()); field(lines, 'Kode Referensi Baru', customerCodeOnly()); field(lines, 'Tanggal', englishDate()); field(lines, 'NO. NOTA PENJUALAN', sclNotaNumber());
-    lines.addAll(['', fmt('%-10s%4s%4s%5s%4s%8s%9s%10s', ['PROD','Box','Bal','Slof','Pak','Tot.Pak','Harga','SubTotal']), dash(), '']);
-    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(fmt('%10s%4d%4d%5d%4d%8d%9s%10s', ['', p.box, p.bal, p.slof, p.pak, p.totPak, money(p.price), money(p.subtotal)])); lines.add(''); }
+    lines.addAll(['', qtyPriceHeader(), dash(), '']);
+    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(qtyPriceLine(p)); lines.add(''); }
     commonTotals(lines, sec, 'UANG TUNAI BV1'); lines.add('PENERIMA                             PENGANTAR'); return lines.join('\n');
   }
 
@@ -188,22 +188,22 @@ class _PrintXHomeState extends State<PrintXHome> {
     final lines = <String>[]; final sub = sectionBaseTotal(sec), grand = sectionTotal(sec), ppn = grand - sub;
     lines.addAll([center('PT. Perusahaan Dagang & Industri Panamas - Sales DPC'), center('RE Cilacap'), center('Jln Raya Jeruk Legi Rt.03/05, CILACAP'), center('(031) 8431699'), '', center('*** PENJUALAN ***'), '']);
     field(lines, 'Salesman', salesman.text); field(lines, 'Pelanggan', customer.text); field(lines, 'Tanggal', englishDate()); field(lines, 'NO. NOTA PENJUALAN', note.text);
-    lines.addAll(['', fmt('%-12s%4s %-4s %8s %6s %8s %8s', ['PROD','Qty','Unit','Harga','Disc','HrgNet','Total']), dash(), '']);
-    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(fmt('%12s%4d %-4s %8s %6s %8s %8s', ['', p.totPak, p.unit, money(p.price), '0', money(p.effectivePrice), money(p.subtotal)])); lines.add(''); }
-    lines.addAll([twoCol('Sub Total', money(sub)), '', twoCol('Diskon','0'), '', twoCol('PPN', money(ppn)), '', twoCol('Total Bayar', money(grand)), '', '']); payment(lines, grand, 'UANG TUNAI'); terms(lines); lines.add('YANG MENERIMA                    YANG MENYERAHKAN'); return lines.join('\n');
+    lines.addAll(['', moneyNetHeader(), dash(), '']);
+    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(moneyNetLine(p)); lines.add(''); }
+    lines.addAll([moneyCol('Sub Total', money(sub)), '', moneyCol('Diskon','0'), '', moneyCol('PPN', money(ppn)), '', moneyCol('Total Bayar', money(grand)), '', '']); payment(lines, grand, 'UANG TUNAI'); terms(lines); lines.add('YANG MENERIMA                    YANG MENYERAHKAN'); return lines.join('\n');
   }
 
   String receiptKorek(String sec) {
     final lines = <String>[]; final sub = sectionBaseTotal(sec), grand = sectionTotal(sec), ppn = grand - sub;
     lines.addAll([center('PT. SRC Indonesia Sembilan - Sales DPC RE Cilacap'), center('Jln Raya Jeruk Legi Rt.03/05 , CILACAP'), center('+62 804-1000-234'), '', center('*** PENJUALAN ***'), '']);
     field(lines, 'Salesman', salesman.text); field(lines, 'Pelanggan', customer.text); field(lines, 'Tanggal', englishDate()); field(lines, 'NO. NOTA PENJUALAN', note.text);
-    lines.addAll(['', fmt('%-12s%4s %-4s %8s %6s %8s %8s', ['PROD','Qty','Unit','Harga','Disc','HrgNet','Total']), dash(), '']);
-    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(fmt('%12s%4d %-4s %8s %6s %8s %8s', ['', p.totPak, p.unit, money(p.price), '0', money(p.effectivePrice), money(p.subtotal)])); lines.add(''); }
-    lines.addAll([twoCol('Sub Total', money(sub)), '', twoCol('Diskon','0'), '', twoCol('PPN', money(ppn)), '', twoCol('Total Bayar', money(grand)), '']); payment(lines, grand, 'UANG TUNAI'); terms(lines, extra: true); lines.add('YANG MENERIMA                    YANG MENYERAHKAN'); return lines.join('\n');
+    lines.addAll(['', moneyNetHeader(), dash(), '']);
+    for (final p in products.where((p) => p.totPak > 0 && p.section == sec)) { lines.add(cut(p.name)); lines.add(moneyNetLine(p)); lines.add(''); }
+    lines.addAll([moneyCol('Sub Total', money(sub)), '', moneyCol('Diskon','0'), '', moneyCol('PPN', money(ppn)), '', moneyCol('Total Bayar', money(grand)), '']); payment(lines, grand, 'UANG TUNAI'); terms(lines, extra: true); lines.add('YANG MENERIMA                    YANG MENYERAHKAN'); return lines.join('\n');
   }
 
-  void commonTotals(List<String> lines, String sec, String payLabel) { final t = templateTotal(sec); lines.addAll([twoCol('Grand Total', money(t)), '', '']); payment(lines, t, payLabel); lines.addAll(['', twoCol('Grand Total', money(t)), '', twoCol('Total Bayar', money(t)), '', '']); terms(lines); }
-  void payment(List<String> lines, int total, String label) => lines.addAll(['Rincian Pembayaran', 'Tipe/Ref No        CNF Number   Due Date     Subtotal', dash(), '', twoCol(label, money(total)), '', '']);
+  void commonTotals(List<String> lines, String sec, String payLabel) { final t = templateTotal(sec); lines.addAll([moneyCol('Grand Total', money(t)), '', '']); payment(lines, t, payLabel); lines.addAll(['', moneyCol('Grand Total', money(t)), '', moneyCol('Total Bayar', money(t)), '', '']); terms(lines); }
+  void payment(List<String> lines, int total, String label) => lines.addAll(['Rincian Pembayaran', cut('Tipe/Ref No          CNF Number   Due Date     Subtotal'), dash(), '', moneyCol(label, money(total)), '', '']);
   void terms(List<String> lines, {bool extra = false}) { lines.add(center('*** Syarat dan Ketentuan Berlaku ***')); lines.add(''); lines.add(center('Mohon untuk selalu memastikan jumlah barang yang diterima', w: 58)); lines.add(center('sesuai dengan pesanan dan nilai uang yang dibayarkan', w: 58)); if (extra) lines.add(center('Barang yang sudah dibeli tidak dapat dikembalikan', w: 58)); lines.addAll(['', '', 'Tanda Tangan', '', '', '', '', '', '', '', '']); }
 
   String codeFor(Product p) {
@@ -266,7 +266,12 @@ String money(int v) => v.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d
 String cut(String s, [int w = cw]) => s.length <= w ? s : s.substring(0, w);
 String center(String s, {int w = cw}) { s = cut(s, w); return ' ' * ((w - s.length) ~/ 2).clamp(0, w) + s; }
 String dash() => '_' * cw;
-String twoCol(String left, String right, {int w = cw}) { w = (w - 4).clamp(42, 200); final lw = (w - right.length - 2).clamp(0, w); final l = cut(left, lw); return l + ' ' * (w - right.length - l.length).clamp(2, w) + right; }
+String twoCol(String left, String right, {int w = cw}) { final lw = (w - right.length - 2).clamp(0, w); final l = cut(left, lw); return l + ' ' * (w - right.length - l.length).clamp(2, w) + right; }
+String moneyCol(String left, String right) => twoCol(left, right, w: 56);
+String qtyPriceHeader() => fmt('%-10s%4s%4s%5s%4s%8s%9s%12s', ['PROD','Box','Bal','Slof','Pak','Tot.Pak','Harga','SubTotal']);
+String qtyPriceLine(Product p) => fmt('%10s%4d%4d%5d%4d%8d%9s%12s', ['', p.box, p.bal, p.slof, p.pak, p.totPak, money(p.price), money(p.subtotal)]);
+String moneyNetHeader() => fmt('%-12s%4s %-4s %8s %6s %8s %9s', ['PROD','Qty','Unit','Harga','Disc','HrgNet','Total']);
+String moneyNetLine(Product p) => fmt('%12s%4d %-4s %8s %6s %8s %9s', ['', p.totPak, p.unit, money(p.price), '0', money(p.effectivePrice), money(p.subtotal)]);
 String fmt(String pattern, List<dynamic> args) {
   // Tiny formatter for fixed-width receipt rows used by this app.
   var i = 0;

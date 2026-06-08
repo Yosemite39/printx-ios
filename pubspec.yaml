@@ -1,7 +1,7 @@
 name: printx_ios
 description: PrintX Flutter iOS port for receipt templates and iPhone IPA build.
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.2+3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
