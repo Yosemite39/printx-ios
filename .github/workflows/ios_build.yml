@@ -56,12 +56,6 @@ jobs:
       - name: Re-install dependencies after clean
         run: flutter pub get
 
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios
-          pod install --repo-update
-          cd ..
-
       - name: Build unsigned IPA
         run: flutter build ipa --release --no-codesign
 
